@@ -90,7 +90,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Contact
 
-Project Maintainer - [@your-hive-username](https://hive.blog/@your-username)
+Project Maintainer - [@abinsaji4](https://hive.blog/@abinsaji4)
 
 ## Acknowledgments
 
