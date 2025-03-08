@@ -1,0 +1,238 @@
+/* Blog Post Styling - Modern & Readable */
+
+/* Main container */
+.container {
+  width: 100%;
+  margin: 0 auto;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, #E6F2FF, #CBE2F3);
+  min-height: 100vh;
+  color: #2C3E50;
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* Header section */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+  margin-bottom: 30px;
+  border-bottom: 1px solid rgba(70, 130, 180, 0.2);
+  width: 100%;
+}
+
+.logo {
+  font-size: 24px;
+  font-weight: 700;
+  color: #4A90E2;
+}
+
+/* Blog post container */
+.blog-post {
+  background-color: white;
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+  width: 100%;
+  border: 1px solid rgba(70, 130, 180, 0.1);
+  margin: 40px 0;
+}
+
+/* Post header */
+.post-header {
+  margin-bottom: 30px;
+}
+
+.post-title {
+  font-size: 2.5em;
+  font-weight: 700;
+  color: #2C3E50;
+  margin-bottom: 20px;
+  line-height: 1.2;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid #E0E7FF;
+  margin: 20px 0;
+}
+
+/* Post metadata */
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 25px;
+  font-size: 0.9em;
+  color: #7F8C8D;
+}
+
+.post-meta span {
+  display: flex;
+  align-items: center;
+}
+
+.post-meta .author {
+  color: #4A90E2;
+  font-weight: 600;
+}
+
+/* Post content */
+.post-content {
+  font-size: 1.1em;
+  line-height: 1.7;
+  color: #2C3E50;
+  margin-bottom: 30px;
+}
+
+.read-more-button {
+  background: none;
+  border: none;
+  color: #4A90E2;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  font-size: 0.95em;
+  transition: color 0.3s ease;
+}
+
+.read-more-button:hover {
+  color: #2980B9;
+}
+
+/* Interactive buttons section */
+.interaction-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+  padding-top: 20px;
+  border-top: 1px solid #E0E7FF;
+  width: 100%;
+}
+
+/* Upvote button */
+.upvote-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  background-color: #3CB371;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.05em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(60, 179, 113, 0.3);
+}
+
+.upvote-button:hover {
+  background-color: #2E8B57;
+  transform: translateY(-2px);
+}
+
+.upvote-button svg {
+  margin-right: 8px;
+}
+
+/* Transfer section */
+.transfer-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.transfer-input {
+  width: 100px;
+  padding: 12px 15px;
+  font-size: 1em;
+  border-radius: 8px;
+  border: 1px solid #4A90E2;
+  background-color: #F7FBFF;
+  color: #2C3E50;
+  transition: all 0.3s ease;
+}
+
+.transfer-select {
+  padding: 12px 15px;
+  font-size: 1em;
+  border-radius: 8px;
+  border: 1px solid #4A90E2;
+  background-color: #F7FBFF;
+  color: #2C3E50;
+  appearance: none;
+  background-repeat: no-repeat;
+  background-position: right 15px top 50%;
+  background-size: 12px;
+  min-width: 100px;
+}
+
+.transfer-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  background-color: #F39C12;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.05em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(243, 156, 18, 0.3);
+}
+
+.transfer-button:hover {
+  background-color: #E67E22;
+  transform: translateY(-2px);
+}
+
+.transfer-button svg {
+  margin-right: 8px;
+}
+
+/* Disabled state */
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .blog-post {
+    padding: 25px;
+  }
+  
+  .post-title {
+    font-size: 2em;
+  }
+  
+  .interaction-buttons {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .transfer-section {
+    width: 100%;
+    margin-top: 15px;
+  }
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.blog-post {
+  animation: fadeIn 0.5s ease-out;
+}
