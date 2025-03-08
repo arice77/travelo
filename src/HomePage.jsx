@@ -223,8 +223,12 @@ const HomePage = () => {
   };
 
   const fetchUsername = () => {
-    const storedUsername = localStorage.getItem('username'); 
-    setUsername(storedUsername || ""); 
+    const storedUsername = localStorage.getItem('username');
+    if (storedUsername && storedUsername.trim() !== '') {
+      setUsername(storedUsername.trim());
+    } else {
+      navigate('/');
+    }
   };
 
   const handlePostClick = (post) => {
@@ -295,13 +299,17 @@ const HomePage = () => {
   const handleAdSubmit = async (e) => {
     e.preventDefault();
     
+    // Get username directly from localStorage
+    const storedUsername = localStorage.getItem('username');
+    
     if (!selectedPlan) {
       alert('Please select an advertising plan');
       return;
     }
 
-    if (!username) {
+    if (!storedUsername || storedUsername.trim() === '') {
       alert('Please log in first to place an advertisement');
+      navigate('/');
       return;
     }
 
@@ -313,16 +321,8 @@ const HomePage = () => {
 
       const formattedAmount = parseFloat(adFormData.adBudget).toFixed(3);
       
-      // Validate username before proceeding
-      if (!username || username.trim() === '') {
-        alert('Please log in again. Your session might have expired.');
-        // Optionally redirect to login page
-        navigate('/');
-        return;
-      }
-      
       window.hive_keychain.requestTransfer(
-        username.trim(), // Ensure username has no whitespace
+        storedUsername.trim(),
         'abinsaji4',
         formattedAmount,
         `Ad payment for: ${adFormData.companyName} - ${selectedPlan.name} Plan`,
@@ -429,8 +429,12 @@ const HomePage = () => {
   };
 
   const handleGuidePurchase = async (guide) => {
-    if (!username) {
+    // Get username directly from localStorage
+    const storedUsername = localStorage.getItem('username');
+
+    if (!storedUsername || storedUsername.trim() === '') {
       alert('Please log in first to purchase guides');
+      navigate('/');
       return;
     }
 
@@ -443,7 +447,7 @@ const HomePage = () => {
       const formattedAmount = parseFloat(guide.price).toFixed(3);
       
       window.hive_keychain.requestTransfer(
-        username.trim(),
+        storedUsername.trim(),
         guide.author,
         formattedAmount,
         `Purchase of guide: ${guide.title}`,
@@ -461,7 +465,12 @@ const HomePage = () => {
             alert('Guide purchased successfully! You can now access the full content.');
             setShowGuidesModal(false);
           } else {
-            alert('Purchase failed. Please try again.');
+            console.error('Keychain error:', response);
+            if (response.error === 'incomplete' || response.message?.includes('username')) {
+              alert('Error: Please make sure you are logged in and try again.');
+            } else {
+              alert('Purchase failed. Please try again.');
+            }
           }
         }
       );
@@ -610,7 +619,7 @@ const HomePage = () => {
       position: 'relative',
       animation: 'slideUp 0.5s ease-out',
       '&:hover': {
-        transform: 'translateY(-10px)',
+      transform: 'translateY(-10px)',
         boxShadow: '0 20px 40px rgba(0,0,0,0.12)',
       }
     },
@@ -1403,7 +1412,7 @@ const HomePage = () => {
             <DollarSign size={20} /> Advertise
           </div>
           <div 
-            style={{
+              style={{
               ...styles.navItem,
               backgroundColor: '#10B981',
               color: 'white',
@@ -1414,9 +1423,9 @@ const HomePage = () => {
             onClick={() => setShowGuidesModal(true)}
           >
             <BookOpen size={20} /> Travel Guides
-          </div>
+            </div>
         </div>
-      </div>
+        </div>
 
       <div style={styles.postsSection}>
         {renderPosts()}
@@ -1446,8 +1455,8 @@ const HomePage = () => {
           }}>
             <Loader size={24} className="animate-spin" />
             <span>Loading...</span>
-          </div>
-        </div>
+            </div>
+              </div>
       }>
         {showTipModal && (
           <TipModal 
@@ -1463,7 +1472,7 @@ const HomePage = () => {
         {showAdModal && (
           <AdModal 
             onClose={() => {
-              setShowAdModal(false);
+    setShowAdModal(false);
               // Check if a new ad was placed via test button
               const savedAd = localStorage.getItem('currentAd');
               if (savedAd) {
