@@ -320,52 +320,91 @@ const HomePage = () => {
       }
 
       const formattedAmount = parseFloat(adFormData.adBudget).toFixed(3);
-      
+      const memo = `Ad payment for: ${adFormData.companyName} - ${selectedPlan.name} Plan`;
+      const cleanUsername = storedUsername.trim();
+
+      // First verify the account exists
+      try {
+        const response = await fetch('https://api.hive.blog', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'condenser_api.get_accounts',
+            params: [[cleanUsername]],
+            id: 1
+          }),
+        });
+
+        const accountData = await response.json();
+        if (!accountData.result || accountData.result.length === 0) {
+          throw new Error('Account not found or network error');
+        }
+      } catch (error) {
+        console.error('Error verifying account:', error);
+        alert('Unable to verify account. Please check your connection and try again.');
+        return;
+      }
+
+      // Proceed with transfer
       window.hive_keychain.requestTransfer(
-        storedUsername.trim(),
-        'abinsaji4',
+        cleanUsername,
+        'abinsaji4', // recipient
         formattedAmount,
-        `Ad payment for: ${adFormData.companyName} - ${selectedPlan.name} Plan`,
+        memo,
         'HIVE',
-        response => {
+        async (response) => {
           if (response.success) {
-            const expiryTime = parseInt(adFormData.duration) * 60 * 60 * 1000;
-            const newAd = {
-              ...adFormData,
-              plan: selectedPlan.name,
-              expiresAt: new Date(Date.now() + expiryTime)
-            };
-            
-            setCurrentAd(newAd);
-            localStorage.setItem('currentAd', JSON.stringify(newAd));
-            
-            setShowAdModal(false);
-            setAdFormData({
-              companyName: '',
-              description: '',
-              websiteUrl: '',
-              adBudget: 10,
-              image: null,
-              targetAudience: '',
-              duration: '24',
-              category: ''
-            });
-            setSelectedPlan(null);
-            
-            alert('Your ad has been successfully placed!');
+            try {
+              const expiryTime = parseInt(adFormData.duration) * 60 * 60 * 1000;
+              const newAd = {
+                ...adFormData,
+                plan: selectedPlan.name,
+                expiresAt: new Date(Date.now() + expiryTime)
+              };
+              
+              setCurrentAd(newAd);
+              localStorage.setItem('currentAd', JSON.stringify(newAd));
+              
+              setShowAdModal(false);
+              setAdFormData({
+                companyName: '',
+                description: '',
+                websiteUrl: '',
+                adBudget: 10,
+                image: null,
+                targetAudience: '',
+                duration: '24',
+                category: ''
+              });
+              setSelectedPlan(null);
+              
+              alert('Your ad has been successfully placed!');
+            } catch (error) {
+              console.error('Error saving ad data:', error);
+              alert('Payment successful but there was an error saving your ad. Please contact support.');
+            }
           } else {
             console.error('Keychain error:', response);
-            if (response.error === 'incomplete' || response.message?.includes('username')) {
-              alert('Error: Please make sure you are logged in and try again.');
+            if (response.error === 'user_cancel') {
+              alert('Transaction cancelled by user.');
+            } else if (response.message === 'Failed to fetch') {
+              alert('Network error. Please check your internet connection and try again.');
             } else {
-              alert('Payment failed. Please try again.');
+              alert('Payment failed: ' + (response.message || 'Unknown error'));
             }
           }
         }
       );
     } catch (error) {
       console.error('Error processing ad payment:', error);
-      alert('There was an error processing your payment. Please try again.');
+      if (error.message === 'Failed to fetch') {
+        alert('Network error. Please check your internet connection and try again.');
+      } else {
+        alert('There was an error processing your payment: ' + error.message);
+      }
     }
   };
 
@@ -444,13 +483,41 @@ const HomePage = () => {
     }
 
     try {
+      const cleanUsername = storedUsername.trim();
+      
+      // First verify the account exists
+      try {
+        const response = await fetch('https://api.hive.blog', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'condenser_api.get_accounts',
+            params: [[cleanUsername]],
+            id: 1
+          }),
+        });
+
+        const accountData = await response.json();
+        if (!accountData.result || accountData.result.length === 0) {
+          throw new Error('Account not found or network error');
+        }
+      } catch (error) {
+        console.error('Error verifying account:', error);
+        alert('Unable to verify account. Please check your connection and try again.');
+        return;
+      }
+
       const formattedAmount = parseFloat(guide.price).toFixed(3);
+      const memo = `Purchase of guide: ${guide.title}`;
       
       window.hive_keychain.requestTransfer(
-        storedUsername.trim(),
+        cleanUsername,
         guide.author,
         formattedAmount,
-        `Purchase of guide: ${guide.title}`,
+        memo,
         'HIVE',
         response => {
           if (response.success) {
@@ -466,17 +533,23 @@ const HomePage = () => {
             setShowGuidesModal(false);
           } else {
             console.error('Keychain error:', response);
-            if (response.error === 'incomplete' || response.message?.includes('username')) {
-              alert('Error: Please make sure you are logged in and try again.');
+            if (response.error === 'user_cancel') {
+              alert('Transaction cancelled by user.');
+            } else if (response.message === 'Failed to fetch') {
+              alert('Network error. Please check your internet connection and try again.');
             } else {
-              alert('Purchase failed. Please try again.');
+              alert('Payment failed: ' + (response.message || 'Unknown error'));
             }
           }
         }
       );
     } catch (error) {
       console.error('Error processing guide purchase:', error);
-      alert('There was an error processing your purchase. Please try again.');
+      if (error.message === 'Failed to fetch') {
+        alert('Network error. Please check your internet connection and try again.');
+      } else {
+        alert('There was an error processing your purchase: ' + error.message);
+      }
     }
   };
 

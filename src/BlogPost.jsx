@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { KeychainSDK } from 'keychain-sdk';
 import { Heart, Send, ChevronDown, User, Calendar, MapPin, Camera, Share2 } from 'lucide-react';
 
 const BlogPost = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { post } = location.state || { post: {} };
 
   const [transferAmount, setTransferAmount] = useState('');
@@ -424,59 +425,164 @@ const BlogPost = () => {
   }
 
   const handleUpvote = async () => {
+    const storedUsername = localStorage.getItem('username');
+
+    if (!storedUsername || storedUsername.trim() === '') {
+      alert('Please log in first to upvote');
+      navigate('/');
+      return;
+    }
+
+    if (!window.hive_keychain) {
+      alert('Hive Keychain extension not found. Please install it to proceed.');
+      return;
+    }
+
     try {
       const keychain = new KeychainSDK(window);
-      const voteParams = {
-        data: {
-          username: username,
-          permlink: post.permlink,
-          author: post.author,
-          weight: 10000,
-        },
+      const voteWeight = 10000; // 100% upvote
+      
+      const voteData = {
+        username: storedUsername.trim(),
+        permlink: post.permlink,
+        author: post.author,
+        weight: voteWeight,
+        remark: 'Blog post vote'
       };
-      const vote = await keychain.vote(voteParams.data);
-      console.log({ vote });
+
+      // First check if post exists and user hasn't already voted
+      try {
+        const response = await fetch('https://api.hive.blog', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'condenser_api.get_active_votes',
+            params: [post.author, post.permlink],
+            id: 1
+          }),
+        });
+
+        const votesData = await response.json();
+        if (votesData.result) {
+          const hasVoted = votesData.result.some(vote => vote.voter === storedUsername);
+          if (hasVoted) {
+            alert('You have already voted on this post!');
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error checking vote status:', error);
+      }
+
+      // Proceed with voting
+      const vote = await keychain.vote(voteData);
+      
       if (vote.success) {
         setIsUpvoted(true);
         alert('Upvote successful!');
       } else {
-        alert('Upvote failed.');
+        if (vote.error && vote.error.message) {
+          alert(`Upvote failed: ${vote.error.message}`);
+        } else if (vote.message) {
+          alert(`Upvote failed: ${vote.message}`);
+        } else {
+          alert('Upvote failed. Please try again.');
+        }
       }
     } catch (error) {
       console.error('Error while upvoting:', error);
+      if (error.message === 'Failed to fetch') {
+        alert('Network error. Please check your internet connection and try again.');
+      } else {
+        alert(`Error while upvoting: ${error.message}`);
+      }
     }
   };
 
-  const handleTransfer = () => {
+  const handleTransfer = async () => {
     setIsTransferring(true);
+    const storedUsername = localStorage.getItem('username');
+
     try {
-      if (window.hive_keychain) {
-        const amount = parseFloat(transferAmount).toFixed(3);
-        const currency = transferCurrency.toUpperCase();
-        window.hive_keychain.requestTransfer(
-          username,
-          post.author,
-          amount,
-          'Supporting the author',
-          currency,
-          (response) => {
-            console.log(response);
-            if (response.success) {
-              alert('Transfer successful!');
-              setTransferAmount('');
-            } else {
-              alert('Transfer failed.');
-            }
-            setIsTransferring(false);
-          },
-          true
-        );
-      } else {
-        alert('Hive Keychain extension is not installed.');
-        setIsTransferring(false);
+      if (!storedUsername || storedUsername.trim() === '') {
+        alert('Please log in first to send tips');
+        navigate('/');
+        return;
       }
+
+      if (!window.hive_keychain) {
+        alert('Hive Keychain extension not found. Please install it to proceed.');
+        return;
+      }
+
+      if (!transferAmount || parseFloat(transferAmount) <= 0) {
+        alert('Please enter a valid amount');
+        return;
+      }
+
+      const amount = parseFloat(transferAmount).toFixed(3);
+      const currency = transferCurrency.toUpperCase();
+
+      // First verify the recipient account exists
+      try {
+        const response = await fetch('https://api.hive.blog', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'condenser_api.get_accounts',
+            params: [[post.author]],
+            id: 1
+          }),
+        });
+
+        const accountData = await response.json();
+        if (!accountData.result || accountData.result.length === 0) {
+          throw new Error('Recipient account not found');
+        }
+      } catch (error) {
+        console.error('Error verifying recipient account:', error);
+        alert('Unable to verify recipient account. Please try again.');
+        return;
+      }
+
+      // Proceed with transfer
+      window.hive_keychain.requestTransfer(
+        storedUsername.trim(),
+        post.author,
+        amount,
+        'Supporting the author',
+        currency,
+        (response) => {
+          if (response.success) {
+            alert('Transfer successful! Thank you for supporting the author.');
+            setTransferAmount('');
+          } else {
+            console.error('Transfer error:', response);
+            if (response.error && response.error.message) {
+              alert(`Transfer failed: ${response.error.message}`);
+            } else if (response.message) {
+              alert(`Transfer failed: ${response.message}`);
+            } else {
+              alert('Transfer failed. Please try again.');
+            }
+          }
+          setIsTransferring(false);
+        },
+        true
+      );
     } catch (error) {
       console.error('Error while transferring:', error);
+      if (error.message === 'Failed to fetch') {
+        alert('Network error. Please check your internet connection and try again.');
+      } else {
+        alert(`Error while transferring: ${error.message}`);
+      }
       setIsTransferring(false);
     }
   };
