@@ -166,11 +166,11 @@ const BlogPostPage = () => {
     <div style={styles.pageContainer}>
       {/* Enhanced Navigation Bar */}
       <div style={styles.navigationBar}>
-        <div style={styles.logo} onClick={() => navigate('/')}>
+        <div style={styles.logo} onClick={() => navigate('/home')}>
           <Globe size={30} style={{marginRight: '10px'}} /> Travelo
         </div>
         <div style={styles.navLinks}>
-          <div style={styles.navLink} onClick={() => navigate('/')}>
+          <div style={styles.navLink} onClick={() => navigate('/home')}>
             <Home size={18} />
             <span>Home</span>
           </div>
