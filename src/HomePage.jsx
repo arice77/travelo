@@ -5,7 +5,6 @@ import OptimizedImage from './components/OptimizedImage';
 
 // Lazy load modals
 const AdModal = React.lazy(() => import('./components/AdModal'));
-const TipModal = React.lazy(() => import('./components/TipModal'));
 const GuidesModal = React.lazy(() => import('./components/GuidesModal'));
 
 const POSTS_PER_PAGE = 9;
@@ -37,9 +36,6 @@ const HomePage = () => {
   const [lastFetchTime, setLastFetchTime] = useState(null);
   const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
   const [selectedPosts, setSelectedPosts] = useState([]);
-  const [showTipModal, setShowTipModal] = useState(false);
-  const [tipAmount, setTipAmount] = useState('1.000');
-  const [tipCurrency, setTipCurrency] = useState('HIVE');
   const [showGuidesModal, setShowGuidesModal] = useState(false);
   const [guides, setGuides] = useState([]);
   const [selectedGuide, setSelectedGuide] = useState(null);
@@ -414,57 +410,6 @@ const HomePage = () => {
       ...prev,
       [name]: name === 'adBudget' ? parseFloat(value) : value
     }));
-  };
-
-  const handleBatchTip = async (e) => {
-    e.preventDefault();
-    
-    if (!username) {
-      alert('Please log in first to send tips');
-      return;
-    }
-
-    if (!window.hive_keychain) {
-      alert('Hive Keychain extension not found. Please install it to proceed with tipping.');
-      return;
-    }
-
-    const uniqueAuthors = [...new Set(selectedPosts.map(post => post.author))];
-    let successCount = 0;
-
-    for (const author of uniqueAuthors) {
-      try {
-        const formattedAmount = parseFloat(tipAmount).toFixed(3);
-        
-        await new Promise((resolve, reject) => {
-          window.hive_keychain.requestTransfer(
-            username.trim(),
-            author,
-            formattedAmount,
-            'Thank you for your content!',
-            tipCurrency,
-            response => {
-              if (response.success) {
-                successCount++;
-                resolve();
-              } else {
-                reject(new Error(response.message));
-              }
-            }
-          );
-        });
-      } catch (error) {
-        console.error(`Error sending tip to ${author}:`, error);
-      }
-    }
-
-    if (successCount > 0) {
-      alert(`Successfully sent tips to ${successCount} author${successCount > 1 ? 's' : ''}!`);
-      setSelectedPosts([]);
-      setShowTipModal(false);
-    } else {
-      alert('Failed to send tips. Please try again.');
-    }
   };
 
   const handleGuidePurchase = async (guide) => {
@@ -1173,40 +1118,6 @@ const HomePage = () => {
 
     return (
       <>
-        {selectedPosts.length > 0 && (
-          <div style={{
-            position: 'fixed',
-            bottom: '80px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            backgroundColor: '#4A90E2',
-            color: 'white',
-            padding: '12px 24px',
-            borderRadius: '30px',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            zIndex: 100,
-            cursor: 'pointer'
-          }} onClick={() => setShowTipModal(true)}>
-            <DollarSign size={20} />
-            Tip {selectedPosts.length} Selected Authors
-          </div>
-        )}
-        <div style={styles.refreshContainer}>
-          <button 
-            onClick={() => {
-              localStorage.removeItem('cachedPosts');
-              localStorage.removeItem('lastFetchTime');
-              setLastFetchTime(null);
-              fetchRecentPosts();
-            }}
-            style={styles.refreshButton}
-          >
-            Refresh Posts
-          </button>
-        </div>
         <div style={styles.postGrid}>
           {visiblePosts.map((post, index) => {
             let imageUrl = '';
@@ -1217,49 +1128,12 @@ const HomePage = () => {
               console.error('Error parsing post metadata:', e);
             }
 
-            const isSelected = selectedPosts.find(p => p.author === post.author);
-
             return (
               <div 
                 key={index} 
-                style={{
-                  ...styles.postCard,
-                  border: isSelected ? '2px solid #4A90E2' : 'none'
-                }}
+                style={styles.postCard}
                 onClick={() => handlePostClick(post)}
               >
-                <div style={{
-                  position: 'absolute',
-                  top: '10px',
-                  right: '10px',
-                  zIndex: 10
-                }}>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (selectedPosts.find(p => p.author === post.author)) {
-                        setSelectedPosts(selectedPosts.filter(p => p.author !== post.author));
-                      } else {
-                        setSelectedPosts([...selectedPosts, post]);
-                      }
-                    }}
-                    style={{
-                      backgroundColor: isSelected ? '#4A90E2' : 'white',
-                      color: isSelected ? 'white' : '#4A90E2',
-                      border: '2px solid #4A90E2',
-                      borderRadius: '50%',
-                      width: '30px',
-                      height: '30px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease'
-                    }}
-                  >
-                    {isSelected ? '✓' : '+'}
-                  </button>
-                </div>
                 {imageUrl && (
                   <OptimizedImage 
                     src={imageUrl} 
@@ -1531,17 +1405,6 @@ const HomePage = () => {
             </div>
               </div>
       }>
-        {showTipModal && (
-          <TipModal 
-            onClose={() => setShowTipModal(false)}
-            selectedPosts={selectedPosts}
-            tipAmount={tipAmount}
-            onTipAmountChange={(e) => setTipAmount(e.target.value)}
-            tipCurrency={tipCurrency}
-            onTipCurrencyChange={(e) => setTipCurrency(e.target.value)}
-            onSubmit={handleBatchTip}
-          />
-        )}
         {showAdModal && (
           <AdModal 
             onClose={() => {
