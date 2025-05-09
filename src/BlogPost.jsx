@@ -1,7 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { KeychainSDK } from 'keychain-sdk';
-import { Heart, Send, ChevronDown, User, Calendar, MapPin, Camera, Share2 } from 'lucide-react';
+import { Heart, Send, Clock, Share2, User, Calendar, MapPin, Camera } from 'lucide-react';
+import { 
+  calculateReadingTime, 
+  extractTags, 
+  processBlogContent, 
+  formatDate, 
+  generateAvatar, 
+  getOptimizedImageSources 
+} from './utils/blogUtils';
+import './BlogPost.css';
 
 const BlogPost = () => {
   const location = useLocation();
@@ -12,113 +21,55 @@ const BlogPost = () => {
   const [transferCurrency, setTransferCurrency] = useState('HIVE');
   const [isTransferring, setIsTransferring] = useState(false);
   const [isUpvoted, setIsUpvoted] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [imagesLoaded, setImagesLoaded] = useState({});
+  const articleRef = useRef(null);
+  const imageObserver = useRef(null);
 
   const username = localStorage.getItem('username');
 
-  // Blog content processing - improved to handle various formats
-  const processBlogContent = (content) => {
-    if (!content) return [];
-    
-    const sections = [];
-    const lines = content.split('\n');
-    let currentParagraph = '';
-    let imageGroup = [];
-    
-    const processMarkdown = (text) => {
-      // Handle bold text
-      text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-      // Handle italic text
-      text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
-      // Handle links
-      text = text.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-      return text;
-    };
-
-    const addParagraph = (text) => {
-      if (text.trim()) {
-        sections.push({
-          type: 'paragraph',
-          content: processMarkdown(text.trim())
-        });
-      }
-    };
-
-    const addImageGroup = () => {
-      if (imageGroup.length > 0) {
-        sections.push({
-          type: 'imageGroup',
-          images: imageGroup
-        });
-        imageGroup = [];
-      }
-    };
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+  // Set up scroll progress tracking
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!articleRef.current) return;
       
-      // Handle horizontal rules
-      if (line.match(/^-{3,}$/) || line.match(/^\*{3,}$/)) {
-        addParagraph(currentParagraph);
-        currentParagraph = '';
-        addImageGroup();
-        sections.push({ type: 'divider' });
-        continue;
-      }
+      const totalHeight = articleRef.current.scrollHeight - articleRef.current.clientHeight;
+      const progress = (window.scrollY / totalHeight) * 100;
+      setScrollProgress(Math.min(progress, 100));
+    };
 
-      // Handle headers
-      if (line.startsWith('#')) {
-        addParagraph(currentParagraph);
-        currentParagraph = '';
-        addImageGroup();
-        const level = line.match(/^#+/)[0].length;
-        const title = line.replace(/^#+\s*/, '');
-        sections.push({
-          type: 'heading',
-          level,
-          content: processMarkdown(title)
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Set up image loading with Intersection Observer
+  useEffect(() => {
+    if ('IntersectionObserver' in window) {
+      imageObserver.current = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const img = entry.target;
+            const src = img.getAttribute('data-src');
+            if (src) {
+              img.src = src;
+              img.classList.remove('image-hidden');
+              img.classList.add('image-visible');
+              imageObserver.current.unobserve(img);
+            }
+          }
         });
-        continue;
-      }
-
-      // Handle images
-      const imageMatch = line.match(/!\[(.*?)\]\((.*?)\)/);
-      if (imageMatch) {
-        addParagraph(currentParagraph);
-        currentParagraph = '';
-        imageGroup.push({
-          alt: imageMatch[1],
-          url: imageMatch[2]
-        });
-        continue;
-      }
-
-      // Handle iframes (YouTube videos)
-      if (line.startsWith('<iframe')) {
-        addParagraph(currentParagraph);
-        currentParagraph = '';
-        addImageGroup();
-        sections.push({
-          type: 'iframe',
-          content: line
-        });
-        continue;
-      }
-
-      // Accumulate paragraph text
-      if (line !== '') {
-        currentParagraph += (currentParagraph ? ' ' : '') + line;
-      } else if (currentParagraph) {
-        addParagraph(currentParagraph);
-        currentParagraph = '';
-      }
+      }, {
+        rootMargin: '50px',
+        threshold: 0.1
+      });
     }
 
-    // Add any remaining content
-    addParagraph(currentParagraph);
-    addImageGroup();
-
-    return sections;
-  };
+    return () => {
+      if (imageObserver.current) {
+        imageObserver.current.disconnect();
+      }
+    };
+  }, []);
 
   const styles = {
     container: {
@@ -403,20 +354,14 @@ const BlogPost = () => {
 
   if (!post || !post.body) {
     return (
-      <div style={{
-        ...styles.container,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
+      <div className="blog-container">
         <div style={{
           textAlign: 'center',
-          color: '#7F8C8D',
-          fontSize: '1.2em',
+          color: 'var(--text-tertiary)',
           padding: '40px',
-          backgroundColor: 'white',
-          borderRadius: '15px',
-          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.05)'
+          backgroundColor: 'var(--background-card)',
+          borderRadius: 'var(--radius-md)',
+          boxShadow: 'var(--shadow-md)'
         }}>
           Post not found
         </div>
@@ -602,63 +547,81 @@ const BlogPost = () => {
     }
   };
 
-  const formattedDate = new Date(post.created).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-
+  const formattedDate = formatDate(post.created);
   const processedContent = processBlogContent(post.body);
-  const firstLetter = post.author ? post.author.charAt(0).toUpperCase() : 'A';
-  
-  // Extract tags from post (mock implementation - replace with actual data)
-  const extractTagsFromContent = (content) => {
-    const tagRegex = /#(\w+)/g;
-    const matches = content.match(tagRegex);
-    
-    if (matches) {
-      return matches.map(tag => tag.substring(1)).filter((v, i, a) => a.indexOf(v) === i).slice(0, 5);
-    }
-    
-    // Default tags if none found
-    return ['Hive', 'Blog'];
-  };
-  
-  const tags = extractTagsFromContent(post.body);
+  const avatar = generateAvatar(post.author);
+  const tags = extractTags(post.body);
+  const readingTime = calculateReadingTime(post.body);
 
+  // Create a reference handler for lazy loading images
+  const handleImageRef = (img) => {
+    if (img && imageObserver.current) {
+      imageObserver.current.observe(img);
+    }
+  };
+
+  // Image loading state tracker
+  const handleImageLoad = (imgId) => {
+    setImagesLoaded(prev => ({
+      ...prev,
+      [imgId]: true
+    }));
+  };
+
+  // Render blog content with improved styling
   const renderContent = (sections) => {
     return sections.map((section, index) => {
       switch (section.type) {
         case 'heading':
-          const HeadingStyle = styles[`heading${section.level}`];
+          const headingClassName = `blog-heading${section.level}`;
           return (
-            <h1 key={index} style={HeadingStyle} 
+            <h1 key={index} className={headingClassName}
                 dangerouslySetInnerHTML={{ __html: section.content }} />
           );
         case 'paragraph':
           return (
-            <p key={index} style={styles.paragraph}
+            <p key={index} className="blog-paragraph"
                dangerouslySetInnerHTML={{ __html: section.content }} />
           );
         case 'divider':
-          return <hr key={index} style={styles.divider} />;
+          return <hr key={index} className="blog-divider" />;
         case 'imageGroup':
           return (
-            <div key={index} style={styles.imageGroup}>
-              {section.images.map((img, imgIndex) => (
-                <img
-                  key={imgIndex}
-                  src={img.url}
-                  alt={img.alt}
-                  style={styles.image}
-                  loading="lazy"
-                />
-              ))}
+            <div key={index} className="blog-image-group">
+              {section.images.map((img, imgIndex) => {
+                const imgId = `img-${index}-${imgIndex}`;
+                const isLoaded = imagesLoaded[imgId];
+                const imgOptions = getOptimizedImageSources(img.url);
+                
+                return (
+                  <div key={imgIndex} className="blog-image-container">
+                    {!isLoaded && (
+                      <div className="blog-image-placeholder image-loading">
+                        <Camera size={32} color="#CBD5E0" />
+                      </div>
+                    )}
+                    <img
+                      className={`blog-image image-hidden ${isLoaded ? 'image-visible' : ''}`}
+                      ref={handleImageRef}
+                      data-src={img.url}
+                      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"
+                      alt={img.alt || "Blog image"}
+                      onLoad={() => handleImageLoad(imgId)}
+                      {...imgOptions}
+                    />
+                    {img.alt && (
+                      <div className="blog-image-caption">
+                        {img.alt}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           );
         case 'iframe':
           return (
-            <div key={index} style={styles.iframeContainer}
+            <div key={index} className="blog-iframe-container"
                  dangerouslySetInnerHTML={{ __html: section.content }} />
           );
         default:
@@ -668,75 +631,79 @@ const BlogPost = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <article style={styles.article}>
-        <header style={styles.header}>
-          <h1 style={styles.title}>{post.title}</h1>
+    <div className="blog-container">
+      {/* Reading progress indicator */}
+      <div className="progress-container">
+        <div className="progress-bar" style={{ width: `${scrollProgress}%` }}></div>
+      </div>
+      
+      <article ref={articleRef} className="blog-article">
+        <header className="blog-header">
+          <h1 className="blog-title">{post.title}</h1>
           
-          <div style={styles.metaBar}>
-            <div style={styles.authorLine}>
-              <div style={styles.authorInfo}>
-                <div style={styles.authorAvatar}>
-                  {firstLetter}
+          <div className="blog-meta-bar">
+            <div className="blog-author-line">
+              <div className="blog-author-info">
+                <div className="blog-author-avatar" style={{ backgroundColor: avatar.color }}>
+                  {avatar.letter}
                 </div>
                 <div>
-                  <div style={{ fontWeight: '600', color: '#2C3E50', marginBottom: '2px' }}>{post.author}</div>
-                  <div style={{ fontSize: '0.9em', color: '#95A5A6' }}>{formattedDate}</div>
+                  <div className="blog-author-name">{post.author}</div>
+                  <div className="blog-author-date">{formattedDate}</div>
                 </div>
+              </div>
+              
+              <div className="reading-time">
+                <Clock size={14} />
+                {readingTime} min read
               </div>
             </div>
             
-            <div style={styles.tagContainer}>
+            <div className="blog-tag-container">
               {tags.map(tag => (
-                <span key={tag} style={styles.tag}>#{tag}</span>
+                <span key={tag} className="blog-tag">#{tag}</span>
               ))}
             </div>
           </div>
         </header>
 
-        <div style={styles.content}>
+        <div className="blog-content">
           {renderContent(processedContent)}
         </div>
 
-        <div style={styles.actionBar}>
-          <div style={styles.actionButtons}>
+        <div className="blog-action-bar">
+          <div className="blog-action-buttons">
             <button 
               onClick={handleUpvote} 
-              style={styles.upvoteButton}
+              className={`blog-upvote-button ${isUpvoted ? 'blog-upvoted' : ''}`}
             >
-              <Heart size={18} style={styles.icon} /> 
+              <Heart size={18} style={{ marginRight: '8px' }} /> 
               {isUpvoted ? 'Upvoted' : 'Upvote'}
             </button>
             
             <button 
               onClick={handleShare} 
-              style={styles.shareButton}
+              className="blog-share-button"
             >
-              <Share2 size={18} style={styles.icon} /> 
+              <Share2 size={18} style={{ marginRight: '8px' }} /> 
               Share
             </button>
           </div>
 
-          <div style={styles.transferContainer}>
+          <div className="blog-transfer-container">
             <input
               type="number"
               placeholder="Amount"
               value={transferAmount}
               onChange={(e) => setTransferAmount(e.target.value)}
               disabled={isTransferring}
-              style={{
-                ...styles.input,
-                ...(isTransferring && styles.disabledInput)
-              }}
+              className={`blog-input ${isTransferring ? 'blog-disabled' : ''}`}
             />
             <select
               value={transferCurrency}
               onChange={(e) => setTransferCurrency(e.target.value)}
               disabled={isTransferring}
-              style={{
-                ...styles.select,
-                ...(isTransferring && styles.disabledInput)
-              }}
+              className={`blog-select ${isTransferring ? 'blog-disabled' : ''}`}
             >
               <option value="HIVE">HIVE</option>
               <option value="HBD">HBD</option>
@@ -744,18 +711,15 @@ const BlogPost = () => {
             <button
               onClick={handleTransfer}
               disabled={isTransferring || !transferAmount}
-              style={{
-                ...styles.transferButton,
-                ...((isTransferring || !transferAmount) && styles.disabledButton)
-              }}
+              className={`blog-transfer-button ${isTransferring || !transferAmount ? 'blog-disabled' : ''}`}
             >
-              <Send size={18} style={styles.icon} />
+              <Send size={18} style={{ marginRight: '8px' }} />
               {isTransferring ? 'Sending...' : 'Send Tip'}
             </button>
           </div>
         </div>
         
-        <div style={styles.footer}>
+        <div className="blog-footer">
           Thanks for reading! Follow {post.author} for more content.
         </div>
       </article>
